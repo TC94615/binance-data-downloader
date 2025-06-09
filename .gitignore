@@ -1,0 +1,132 @@
+# ===================================================================
+# A robust .gitignore for Python projects
+#
+# Sections included:
+# - Byte-compiled/optimized files
+# - C extensions
+# - Virtual Environments
+# - Build, distribution, and packaging
+# - PyInstaller
+# - Unit Test and Coverage
+# - IDE and Editor-specific files (VSCode, PyCharm, etc.)
+# - OS-specific files (macOS, Windows, Linux)
+# - Jupyter Notebook checkpoints
+# - Django & Flask specific files
+# - Environment variables and secrets
+# - Log and cache files
+# ===================================================================
+
+# Byte-compiled/optimized/c-compiled files
+# -------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+# -------------------------------------------------------------------
+*.so
+
+# Virtual Environments
+# -------------------------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+.env/
+virtualenv/
+*/activate_this.py
+
+# Build, distribution, and packaging
+# -------------------------------------------------------------------
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Poetry
+# -------------------------------------------------------------------
+# poetry.lock is not ignored by default, but can be if you are a library developer.
+# See https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file
+# poetry.lock
+poetry.toml
+
+# PyInstaller
+# -------------------------------------------------------------------
+# Usually these files are created by pyinstaller
+*.spec
+*.pyzw
+
+# Unit Test and Coverage Reports
+# -------------------------------------------------------------------
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# IDE and Editor-specific files
+# -------------------------------------------------------------------
+.vscode/
+.idea/           # PyCharm
+*.swp
+*~
+*.sublime-project
+*.sublime-workspace
+
+# OS-specific files
+# -------------------------------------------------------------------
+.DS_Store        # macOS
+Thumbs.db        # Windows
+ehthumbs.db      # Windows
+
+# Jupyter Notebook checkpoints
+# -------------------------------------------------------------------
+.ipynb_checkpoints
+
+# Web Frameworks (Django, Flask, etc.)
+# -------------------------------------------------------------------
+db.sqlite3       # Default Django database
+db.sqlite3-journal
+instance/        # Flask instance folder
+*.log
+local_settings.py
+
+# Environment variables and secrets
+# -------------------------------------------------------------------
+# Never commit your secrets!
+.env
+.env.*
+secrets.toml
+secrets.yaml
+*.pem
+*.key
+
+# Log and cache files
+# -------------------------------------------------------------------
+*.log
+*.log.*
+*.pot
+*.pyg
+celerybeat-schedule
+
+# Donwloaded files
+downloaded_data/

@@ -1,0 +1,70 @@
+# =================================================================
+#  Poetry Core Configuration
+#  - Defines project metadata like name, version, authors, etc.
+# =================================================================
+[tool.poetry]
+name = "binance-data-downloader-by-claude"
+version = "0.1.0"
+description = "A robust Binance historical data downloader" # 建議填寫一個簡短的描述
+authors = ["TC94615 <TCLee0117@gmail.com>"]
+readme = "README.md"
+packages = [{include = "binance_downloader", from = "src"}]
+
+[tool.poetry.scripts]
+binance-downloader = "binance_downloader.main:run"
+# =================================================================
+#  Main Dependencies (Core)
+#  - These are the essential packages your application needs to run.
+#  - Installed by default with `poetry install`.
+# =================================================================
+[tool.poetry.dependencies]
+python = ">=3.11"
+aiohttp = ">=3.9.0"
+aiofiles = ">=23.0.0"
+asyncio-throttle = ">=1.0.2"
+
+# =================================================================
+#  Dependency Groups (Optional)
+#  - These groups are for development, testing, docs, etc.
+#  - They are NOT installed by default.
+#  - Use `poetry install --with <group_name>` to install them.
+# =================================================================
+
+# -- UI Group (for progress bars and colored logs) --
+[tool.poetry.group.ui]
+optional = true # Mark as optional
+[tool.poetry.group.ui.dependencies]
+tqdm = ">=4.65.0"
+colorlog = ">=6.7.0"
+
+# -- Test Group (for running tests) --
+[tool.poetry.group.test]
+optional = true # Mark as optional
+[tool.poetry.group.test.dependencies]
+pytest = ">=7.0.0"
+pytest-asyncio = ">=0.21.0"
+aioresponses = ">=0.7.4"
+
+# -- Dev Group (for linting, formatting, and type checking) --
+[tool.poetry.group.dev]
+optional = true # Mark as optional
+[tool.poetry.group.dev.dependencies]
+black = ">=23.0.0"
+flake8 = ">=6.0.0"
+mypy = ">=1.5.0"
+types-aiofiles = "^24.1.0.20250606"
+
+# -- Doc Group (for building documentation) --
+[tool.poetry.group.doc]
+optional = true # Mark as optional
+[tool.poetry.group.doc.dependencies]
+sphinx = ">=7.0.0"
+"sphinx-rtd-theme" = ">=1.3.0" # Package names with hyphens need quotes
+
+# =================================================================
+#  Build System Configuration
+#  - Tells Python packaging tools how to build your project.
+# =================================================================
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
