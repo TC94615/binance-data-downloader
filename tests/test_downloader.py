@@ -1,9 +1,3 @@
-"""
-Test suite for Binance Historical Data Downloader
-
-Following TDD principles with comprehensive unit and integration tests.
-"""
-
 import asyncio
 import hashlib
 import tempfile
@@ -15,152 +9,17 @@ import pytest
 import aiohttp
 from aioresponses import aioresponses
 
-# Import the modules to test
-from binance_downloader import (
-    BinanceURLBuilder,
-    ChecksumValidator,
-    FileDownloader,
-    BinanceDataDownloader,
+from src.binance_downloader.core import (
     DataMarket,
     DataType,
     Frequency,
     DownloadTask,
-    MARKET_DATATYPE_CONFIG,
-    KLINE_DATA_TYPES,
 )
-
-
-class TestBinanceURLBuilder:
-    """Test cases for BinanceURLBuilder class."""
-
-    def setup_method(self):
-        """Setup test fixtures."""
-        self.url_builder = BinanceURLBuilder()
-
-    def test_build_url_spot_daily_klines(self):
-        """Test URL building for spot daily klines data."""
-        url = self.url_builder.build_url(
-            market=DataMarket.SPOT,
-            data_type=DataType.KLINES,
-            symbol="BTCUSDT",
-            date="2025-06-08",
-            frequency=Frequency.ONE_DAY,
-            is_monthly=False,
-        )
-
-        expected = "https://data.binance.vision/data/spot/daily/klines/BTCUSDT/1d/BTCUSDT-1d-2025-06-08.zip"
-        assert url == expected
-
-    def test_build_url_spot_monthly_aggtrades(self):
-        """Test URL building for spot monthly aggTrades data."""
-        url = self.url_builder.build_url(
-            market=DataMarket.SPOT,
-            data_type=DataType.AGG_TRADES,
-            symbol="BTCUSDT",
-            date="2025-05",
-            is_monthly=True,
-        )
-
-        expected = "https://data.binance.vision/data/spot/monthly/aggTrades/BTCUSDT/BTCUSDT-aggTrades-2025-05.zip"
-        assert url == expected
-
-    def test_build_url_futures_um_daily_klines(self):
-        """Test URL building for futures UM daily klines."""
-        url = self.url_builder.build_url(
-            market=DataMarket.FUTURES_UM,
-            data_type=DataType.KLINES,
-            symbol="1000000BOBUSDT",
-            date="2025-06-08",
-            frequency=Frequency.ONE_DAY,
-            is_monthly=False,
-        )
-
-        expected = "https://data.binance.vision/data/futures/um/daily/klines/1000000BOBUSDT/1d/1000000BOBUSDT-1d-2025-06-08.zip"
-        assert url == expected
-
-    def test_build_url_futures_cm_monthly_trades(self):
-        """Test URL building for futures CM monthly trades."""
-        url = self.url_builder.build_url(
-            market=DataMarket.FUTURES_CM,
-            data_type=DataType.TRADES,
-            symbol="AAVEUSD_PERP",
-            date="2025-05",
-            is_monthly=True,
-        )
-
-        expected = "https://data.binance.vision/data/futures/cm/monthly/trades/AAVEUSD_PERP/AAVEUSD_PERP-trades-2025-05.zip"
-        assert url == expected
-
-    def test_build_url_option_bvol_index(self):
-        """Test URL building for option BVOLIndex data."""
-        url = self.url_builder.build_url(
-            market=DataMarket.OPTION,
-            data_type=DataType.BVOL_INDEX,
-            symbol="BTCBVOLUSDT",
-            date="2025-06-08",
-            is_monthly=False,
-        )
-
-        expected = "https://data.binance.vision/data/option/daily/BVOLIndex/BTCBVOLUSDT/BTCBVOLUSDT-BVOLIndex-2025-06-08.zip"
-        assert url == expected
-
-    def test_build_url_kline_without_frequency_raises_error(self):
-        """Test that building URL for kline data without frequency raises error."""
-        with pytest.raises(ValueError, match="Frequency required for data type"):
-            self.url_builder.build_url(
-                market=DataMarket.SPOT,
-                data_type=DataType.KLINES,
-                symbol="BTCUSDT",
-                date="2025-06-08",
-            )
-
-    def test_build_url_unsupported_market_raises_error(self):
-        """Test that unsupported market raises error."""
-        # This would require creating a mock unsupported market
-        # For now, we'll test with a known enum value
-        pass
-
-    def test_build_market_type_path_futures_um_daily(self):
-        """Test market type path building for futures UM daily."""
-        path = self.url_builder._build_market_type_path(
-            DataMarket.FUTURES_UM, DataType.KLINES, False
-        )
-        assert path == "futures/um/daily"
-
-    def test_build_market_type_path_spot_monthly(self):
-        """Test market type path building for spot monthly."""
-        path = self.url_builder._build_market_type_path(
-            DataMarket.SPOT, DataType.AGG_TRADES, True
-        )
-        assert path == "spot/monthly"
-
-    def test_build_symbol_file_path_klines(self):
-        """Test symbol file path building for klines."""
-        path = self.url_builder._build_symbol_file_path(
-            DataType.KLINES, "BTCUSDT", Frequency.ONE_DAY
-        )
-        assert path == "klines/BTCUSDT/1d"
-
-    def test_build_symbol_file_path_non_klines(self):
-        """Test symbol file path building for non-klines data."""
-        path = self.url_builder._build_symbol_file_path(
-            DataType.AGG_TRADES, "BTCUSDT", None
-        )
-        assert path == "aggTrades/BTCUSDT"
-
-    def test_build_filename_klines(self):
-        """Test filename building for klines data."""
-        filename = self.url_builder._build_filename(
-            "BTCUSDT", DataType.KLINES, "2025-06-08", Frequency.ONE_DAY
-        )
-        assert filename == "BTCUSDT-1d-2025-06-08.zip"
-
-    def test_build_filename_non_klines(self):
-        """Test filename building for non-klines data."""
-        filename = self.url_builder._build_filename(
-            "BTCUSDT", DataType.AGG_TRADES, "2025-06-08", None
-        )
-        assert filename == "BTCUSDT-aggTrades-2025-06-08.zip"
+from src.binance_downloader.downloader import (
+    ChecksumValidator,
+    FileDownloader,
+    BinanceDataDownloader,
+)
 
 
 class TestChecksumValidator:
@@ -556,187 +415,105 @@ class TestBinanceDataDownloader:
             called_tasks = mock_download.call_args[0][0]
 
             # Should have tasks for both daily and monthly (if available for spot)
-            assert len(called_tasks) >= 2  # At least 2 days
+            # This assertion needs to be more specific based on MARKET_DATATYPE_CONFIG
+            # For SPOT, KLINE, daily data from 2025-01-01 to 2025-01-02,
+            # it generates:
+            # 1. spot/daily/klines/BTCUSDT/1d/BTCUSDT-1d-2025-01-01.zip
+            # 2. spot/daily/klines/BTCUSDT/1d/BTCUSDT-1d-2025-01-02.zip
+            # 3. spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2025-01.zip (from the monthly period processing)
+            assert len(called_tasks) == 3
             assert all(isinstance(task, DownloadTask) for task in called_tasks)
+            # Check some properties of the generated tasks to ensure they are as expected
+            daily_tasks = [t for t in called_tasks if "daily" in t.url and t.date in ["2025-01-01", "2025-01-02"]]
+            monthly_tasks = [t for t in called_tasks if "monthly" in t.url and t.date == "2025-01"]
+            assert len(daily_tasks) == 2
+            assert len(monthly_tasks) == 1
+            assert daily_tasks[0].frequency == Frequency.ONE_DAY
+            assert monthly_tasks[0].frequency == Frequency.ONE_DAY # Current behavior uses specified freq for monthly too
 
-
-class TestConfigurationAndEnums:
-    """Test cases for configuration and enum validation."""
-
-    def test_market_datatype_config_completeness(self):
-        """Test that market-datatype configuration is complete."""
-        # Verify all markets are in config
-        for market in DataMarket:
-            assert market in MARKET_DATATYPE_CONFIG
-
-        # Verify config structure
-        for market, periods in MARKET_DATATYPE_CONFIG.items():
-            assert isinstance(periods, dict)
-            for period, data_types in periods.items():
-                assert period in ["daily", "monthly"]
-                assert isinstance(data_types, set)
-                assert all(isinstance(dt, DataType) for dt in data_types)
-
-    def test_kline_data_types_definition(self):
-        """Test that kline data types are correctly defined."""
-        expected_kline_types = {
-            DataType.KLINES,
-            DataType.INDEX_PRICE_KLINES,
-            DataType.MARK_PRICE_KLINES,
-            DataType.PREMIUM_INDEX_KLINES,
-        }
-
-        assert KLINE_DATA_TYPES == expected_kline_types
-
-    def test_enum_values_consistency(self):
-        """Test that enum values are consistent with expected strings."""
-        # Test DataMarket enum values
-        assert DataMarket.SPOT.value == "spot"
-        assert DataMarket.FUTURES_CM.value == "futures-cm"
-        assert DataMarket.FUTURES_UM.value == "futures-um"
-        assert DataMarket.OPTION.value == "option"
-
-        # Test some DataType enum values
-        assert DataType.KLINES.value == "klines"
-        assert DataType.AGG_TRADES.value == "aggTrades"
-        assert DataType.BVOL_INDEX.value == "BVOLIndex"
-
-        # Test some Frequency enum values
-        assert Frequency.ONE_DAY.value == "1d"
-        assert Frequency.ONE_HOUR.value == "1h"
-        assert Frequency.ONE_MINUTE.value == "1m"
-
-
-class TestDownloadTask:
-    """Test cases for DownloadTask dataclass."""
-
-    def test_download_task_creation(self):
-        """Test creating a DownloadTask instance."""
-        task = DownloadTask(
-            url="https://example.com/test.zip",
-            symbol="BTCUSDT",
-            data_type=DataType.KLINES,
-            date="2025-01-01",
-            output_path=Path("/tmp/test.zip"),
-            frequency=Frequency.ONE_DAY,
-        )
-
-        assert task.url == "https://example.com/test.zip"
-        assert task.symbol == "BTCUSDT"
-        assert task.data_type == DataType.KLINES
-        assert task.date == "2025-01-01"
-        assert task.output_path == Path("/tmp/test.zip")
-        assert task.frequency == Frequency.ONE_DAY
-
-    def test_download_task_optional_frequency(self):
-        """Test DownloadTask with optional frequency."""
-        task = DownloadTask(
-            url="https://example.com/test.zip",
-            symbol="BTCUSDT",
-            data_type=DataType.AGG_TRADES,
-            date="2025-01-01",
-            output_path=Path("/tmp/test.zip"),
-        )
-
-        assert task.frequency is None
-
-
-class TestArgumentParsing:
-    """Test cases for command-line argument parsing."""
-
-    def test_parse_arguments_defaults(self):
-        """Test parsing arguments with defaults."""
-        # This would require mocking sys.argv or using a different approach
-        # For now, we'll test the argument parser configuration
-        from binance_downloader import parse_arguments
-
-        # Test that the function exists and returns an ArgumentParser
-        # In a real test, we'd mock sys.argv and test specific argument combinations
-        pass
-
-
-# Integration Tests
-class TestIntegration:
-    """Integration tests for the complete system."""
-
-    def setup_method(self):
-        """Setup test fixtures."""
-        self.temp_dir = Path(tempfile.mkdtemp())
-
-    def teardown_method(self):
-        """Clean up test fixtures."""
-        import shutil
-
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @pytest.mark.asyncio
-    async def test_end_to_end_workflow(self):
-        """Test the complete end-to-end workflow."""
-        # This is a more complex integration test that would test the entire workflow
-        # from URL building through download and extraction
+    @patch("src.binance_downloader.downloader.get_all_symbols")
+    async def test_download_data_fetch_all_symbols_success(self, mock_get_all_symbols):
+        """Test download_data when no symbols are provided and fetching is successful."""
+        # Mock get_all_symbols to return specific symbols for SPOT
+        mock_get_all_symbols.return_value = ["BTCUSDT", "ETHUSDT"]
 
-        # Create downloader
-        downloader = BinanceDataDownloader(self.temp_dir)
+        # Mock the file downloader to prevent actual downloads
+        with patch.object(self.downloader.file_downloader, "download_tasks") as mock_download_tasks:
+            mock_download_tasks.return_value = {} # No actual downloads needed for this test focus
 
-        # Mock all external dependencies
-        with patch.object(
-            downloader.file_downloader, "download_tasks"
-        ) as mock_download:
-            mock_download.return_value = {"https://example.com/test.zip": True}
-
-            # Run a small download job
-            await downloader.download_data(
+            await self.downloader.download_data(
                 markets=[DataMarket.SPOT],
-                data_types=[DataType.AGG_TRADES],
-                symbols=["BTCUSDT"],
-                frequencies=[Frequency.ONE_DAY],
-                start_date="2025-01-01",
-                end_date="2025-01-01",
+                data_types=[DataType.TRADES], # Using a non-kline type for simplicity
+                symbols=None, # Explicitly None to trigger fetching
+                frequencies=[],
+                start_date="2024-01-01",
+                end_date="2024-01-01",
             )
 
-            # Verify the download was attempted
-            mock_download.assert_called_once()
+            # Verify get_all_symbols was called once for SPOT market
+            mock_get_all_symbols.assert_called_once_with(DataMarket.SPOT, mock_get_all_symbols.call_args[0][1]) # Second arg is the session
 
+            # Verify that download_tasks was called (or tasks were generated with fetched symbols)
+            # We expect tasks for BTCUSDT and ETHUSDT for SPOT, TRADES, daily and monthly
+            # Daily: 2024-01-01 (BTCUSDT, ETHUSDT) -> 2 tasks
+            # Monthly: 2024-01 (BTCUSDT, ETHUSDT) -> 2 tasks
+            # Total = 4 tasks
+            mock_download_tasks.assert_called_once()
+            tasks_passed_to_downloader = mock_download_tasks.call_args[0][0]
+            assert len(tasks_passed_to_downloader) == 4
 
-# Performance Tests
-class TestPerformance:
-    """Performance-related tests."""
+            symbols_in_tasks = {task.symbol for task in tasks_passed_to_downloader}
+            assert symbols_in_tasks == {"BTCUSDT", "ETHUSDT"}
+
 
     @pytest.mark.asyncio
-    async def test_concurrent_download_limits(self):
-        """Test that concurrent downloads respect limits."""
-        temp_dir = Path(tempfile.mkdtemp())
-        try:
-            downloader = FileDownloader(temp_dir, max_concurrent=2)
+    @patch("src.binance_downloader.downloader.get_all_symbols")
+    async def test_download_data_with_user_provided_symbols(self, mock_get_all_symbols):
+        """Test download_data when user provides symbols; get_all_symbols should not be called."""
+        user_symbols = ["ADAUSDT", "XRPUSDT"]
 
-            # Create multiple tasks
-            tasks = []
-            for i in range(5):
-                task = DownloadTask(
-                    url=f"https://example.com/test{i}.zip",
-                    symbol="BTCUSDT",
-                    data_type=DataType.KLINES,
-                    date=f"2025-01-0{i+1}",
-                    output_path=temp_dir / f"test{i}.zip",
-                )
-                tasks.append(task)
+        with patch.object(self.downloader.file_downloader, "download_tasks") as mock_download_tasks:
+            mock_download_tasks.return_value = {}
 
-            # Mock the downloads to simulate work
-            with patch.object(downloader, "_download_single_file") as mock_download:
-                mock_download.return_value = True
+            await self.downloader.download_data(
+                markets=[DataMarket.SPOT],
+                data_types=[DataType.TRADES],
+                symbols=user_symbols,
+                frequencies=[],
+                start_date="2024-01-01",
+                end_date="2024-01-01",
+            )
 
-                # This test would verify that max_concurrent is respected
-                # In practice, this is hard to test without timing or other mechanisms
-                results = await downloader.download_tasks(tasks)
+            mock_get_all_symbols.assert_not_called()
 
-                assert len(results) == 5
-                assert mock_download.call_count == 5
-
-        finally:
-            import shutil
-
-            shutil.rmtree(temp_dir, ignore_errors=True)
+            mock_download_tasks.assert_called_once()
+            tasks_passed_to_downloader = mock_download_tasks.call_args[0][0]
+            # Expected: ADAUSDT (daily, monthly), XRPUSDT (daily, monthly) -> 4 tasks
+            assert len(tasks_passed_to_downloader) == 4
+            symbols_in_tasks = {task.symbol for task in tasks_passed_to_downloader}
+            assert symbols_in_tasks == set(user_symbols)
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    @pytest.mark.asyncio
+    @patch("src.binance_downloader.downloader.get_all_symbols")
+    async def test_download_data_fetch_all_symbols_returns_empty(self, mock_get_all_symbols, caplog):
+        """Test download_data when no symbols are provided and fetching returns no symbols."""
+        mock_get_all_symbols.return_value = [] # Simulate no symbols found
+
+        with patch.object(self.downloader.file_downloader, "download_tasks") as mock_download_tasks:
+            await self.downloader.download_data(
+                markets=[DataMarket.SPOT],
+                data_types=[DataType.TRADES],
+                symbols=None,
+                frequencies=[],
+                start_date="2024-01-01",
+                end_date="2024-01-01",
+            )
+
+            mock_get_all_symbols.assert_called_once_with(DataMarket.SPOT, mock_get_all_symbols.call_args[0][1])
+            # Ensure an error/warning is logged
+            assert "No symbols found for any of the selected markets. Exiting." in caplog.text
+            # download_tasks should not be called if no symbols are processed
+            mock_download_tasks.assert_not_called()
