@@ -1,13 +1,23 @@
 import asyncio
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, TypedDict
 import aiohttp
+from aiohttp import ClientTimeout
 
 from .core import DataMarket
 
 logger = logging.getLogger(__name__)
 
-API_CONFIG: Dict[DataMarket, Dict[str, str]] = {
+API_TIMEOUT = 10 # Define API_TIMEOUT constant
+
+class MarketDetails(TypedDict):
+    url: str
+    symbol_key: str
+    filter_key: Optional[str]
+    filter_value: Optional[str]
+    name_key: str
+
+API_CONFIG: Dict[DataMarket, MarketDetails] = {
     DataMarket.SPOT: {
         "url": "https://api.binance.com/api/v3/exchangeInfo",
         "symbol_key": "symbols",
@@ -25,19 +35,16 @@ API_CONFIG: Dict[DataMarket, Dict[str, str]] = {
     DataMarket.FUTURES_CM: {
         "url": "https://dapi.binance.com/dapi/v1/exchangeInfo",
         "symbol_key": "symbols",
-        "filter_key": "contractStatus", # Note: Different filter key for CM
+        "filter_key": "contractStatus",
         "filter_value": "TRADING",
         "name_key": "symbol",
     },
     DataMarket.OPTION: {
         "url": "https://eapi.binance.com/eapi/v1/exchangeInfo",
-        "symbol_key": "optionSymbols", # Note: Different symbol key for Options
-        # For options, the structure is different. We might not have a direct "status" field for each symbol.
-        # We will extract all 'name' from 'optionSymbols' list.
-        # The 'optionSymbols' list itself contains objects with a 'name' field.
-        "filter_key": None, # No direct status filter per symbol in the same way
+        "symbol_key": "optionSymbols",
+        "filter_key": None,
         "filter_value": None,
-        "name_key": "name", # Assuming the symbol identifier is 'name'
+        "name_key": "name",
     },
 }
 
@@ -68,7 +75,7 @@ async def get_all_symbols(
 
     try:
         logger.debug(f"Fetching symbols for market {market.value} from {url}")
-        async with session.get(url, timeout=10) as response:
+        async with session.get(url, timeout=ClientTimeout(total=API_TIMEOUT)) as response:
             response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
             data = await response.json()
 
