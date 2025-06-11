@@ -45,7 +45,7 @@ async def main():
             frequencies=frequencies,
             start_date=args.start_date,
             end_date=args.end_date,
-            download_period=args.download_interval_type,
+            download_interval_type=args.download_interval_type,
         )
         logger.info("Download process completed")
     except Exception as e:
