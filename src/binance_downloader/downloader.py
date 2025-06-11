@@ -341,7 +341,7 @@ class BinanceDataDownloader:
         frequencies: List[Frequency],
         start_date: Optional[str],
         end_date: Optional[str],
-        download_period: str,
+        download_interval_type: str,
     ) -> None:
         """Download data based on specified parameters, skipping existing files."""
 
@@ -372,10 +372,10 @@ class BinanceDataDownloader:
         for market in markets:
             market_config = MARKET_DATATYPE_CONFIG.get(market, {})
 
-            # Filter market_config based on download_period
-            if download_period == 'daily':
+            # Filter market_config based on download_interval_type
+            if download_interval_type == 'daily':
                 market_config = {k: v for k, v in market_config.items() if k == 'daily'}
-            elif download_period == 'monthly':
+            elif download_interval_type == 'monthly':
                 market_config = {k: v for k, v in market_config.items() if k == 'monthly'}
             # If 'both', use the original market_config
 

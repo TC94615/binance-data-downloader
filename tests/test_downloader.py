@@ -407,6 +407,7 @@ class TestBinanceDataDownloader:
                 frequencies=[Frequency.ONE_DAY],
                 start_date="2025-01-01",
                 end_date="2025-01-02",
+                download_interval_type="both", # Added to match new required parameter
             )
 
             # Verify download_tasks was called
@@ -647,7 +648,7 @@ class TestBinanceDataDownloaderWithDownloadPeriod:
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    async def _run_download_data_and_get_tasks(self, download_period_value: str, symbols: list = ["BTCUSDT"]):
+    async def _run_download_data_and_get_tasks(self, download_interval_type_value: str, symbols: list = ["BTCUSDT"]):
         """Helper to run download_data and return the tasks passed to file_downloader."""
         await self.downloader.download_data(
             markets=[DataMarket.SPOT],
@@ -656,7 +657,7 @@ class TestBinanceDataDownloaderWithDownloadPeriod:
             frequencies=[Frequency.ONE_DAY],
             start_date="2024-01-01",
             end_date="2024-01-01", # Single day for simplicity
-            download_period=download_period_value,
+            download_interval_type=download_interval_type_value,
         )
         if self.mock_file_downloader.download_tasks.call_args:
             return self.mock_file_downloader.download_tasks.call_args[0][0]
@@ -664,8 +665,8 @@ class TestBinanceDataDownloaderWithDownloadPeriod:
 
     @pytest.mark.asyncio
     async def test_download_data_daily_only(self):
-        """Asserts that only daily data tasks are created when download_period is 'daily'."""
-        tasks = await self._run_download_data_and_get_tasks(download_period_value="daily")
+        """Asserts that only daily data tasks are created when download_interval_type is 'daily'."""
+        tasks = await self._run_download_data_and_get_tasks(download_interval_type_value="daily")
 
         assert tasks, "No tasks were generated"
         # For SPOT, KLINE (1d) and TRADES, 2024-01-01, BTCUSDT:
@@ -680,8 +681,8 @@ class TestBinanceDataDownloaderWithDownloadPeriod:
 
     @pytest.mark.asyncio
     async def test_download_data_monthly_only(self):
-        """Asserts that only monthly data tasks are created when download_period is 'monthly'."""
-        tasks = await self._run_download_data_and_get_tasks(download_period_value="monthly")
+        """Asserts that only monthly data tasks are created when download_interval_type is 'monthly'."""
+        tasks = await self._run_download_data_and_get_tasks(download_interval_type_value="monthly")
 
         assert tasks, "No tasks were generated"
         # For SPOT, KLINE (1d) and TRADES, 2024-01 (from 2024-01-01), BTCUSDT:
@@ -696,8 +697,8 @@ class TestBinanceDataDownloaderWithDownloadPeriod:
 
     @pytest.mark.asyncio
     async def test_download_data_both(self):
-        """Asserts that both daily and monthly data tasks are created when download_period is 'both'."""
-        tasks = await self._run_download_data_and_get_tasks(download_period_value="both")
+        """Asserts that both daily and monthly data tasks are created when download_interval_type is 'both'."""
+        tasks = await self._run_download_data_and_get_tasks(download_interval_type_value="both")
 
         assert tasks, "No tasks were generated"
         # For SPOT, KLINE (1d) and TRADES, 2024-01-01 (daily) & 2024-01 (monthly), BTCUSDT:
@@ -717,7 +718,7 @@ class TestBinanceDataDownloaderWithDownloadPeriod:
     async def test_download_data_daily_only_no_symbols_fetch(self):
         """Test daily only with symbol fetching."""
         self.mock_get_all_symbols.return_value = ["ETHUSDT"] # Mock fetched symbol
-        tasks = await self._run_download_data_and_get_tasks(download_period_value="daily", symbols=None)
+        tasks = await self._run_download_data_and_get_tasks(download_interval_type_value="daily", symbols=None)
 
         assert tasks, "No tasks were generated"
         assert len(tasks) == 2 # ETHUSDT daily klines, ETHUSDT daily trades
@@ -730,7 +731,7 @@ class TestBinanceDataDownloaderWithDownloadPeriod:
     async def test_download_data_monthly_only_no_symbols_fetch(self):
         """Test monthly only with symbol fetching."""
         self.mock_get_all_symbols.return_value = ["BNBUSDT"] # Mock fetched symbol
-        tasks = await self._run_download_data_and_get_tasks(download_period_value="monthly", symbols=None)
+        tasks = await self._run_download_data_and_get_tasks(download_interval_type_value="monthly", symbols=None)
 
         assert tasks, "No tasks were generated"
         assert len(tasks) == 2 # BNBUSDT monthly klines, BNBUSDT monthly trades
@@ -743,7 +744,7 @@ class TestBinanceDataDownloaderWithDownloadPeriod:
     async def test_download_data_both_no_symbols_fetch(self):
         """Test both daily and monthly with symbol fetching."""
         self.mock_get_all_symbols.return_value = ["SOLUSDT"] # Mock fetched symbol
-        tasks = await self._run_download_data_and_get_tasks(download_period_value="both", symbols=None)
+        tasks = await self._run_download_data_and_get_tasks(download_interval_type_value="both", symbols=None)
 
         assert tasks, "No tasks were generated"
         assert len(tasks) == 4 # SOLUSDT daily (klines, trades), SOLUSDT monthly (klines, trades)
