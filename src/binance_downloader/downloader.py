@@ -18,7 +18,7 @@ from .core import (
     DownloadTask,
     Frequency,
 )
-from ..utils import convert_csv_to_feather # Added import
+from .utils import convert_csv_to_feather # Added import
 from .url_builder import BinanceURLBuilder
 from .symbol_fetcher import get_all_symbols
 
