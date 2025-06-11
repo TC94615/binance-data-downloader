@@ -160,6 +160,7 @@ class TestIntegration:
                 frequencies=[], # Explicitly empty for non-kline
                 start_date="2025-02-01",
                 end_date="2025-02-01",
+                download_interval_type='both', # Added argument
             )
 
             mock_file_download_tasks.assert_called_once()

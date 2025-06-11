@@ -452,6 +452,7 @@ class TestBinanceDataDownloader:
                 frequencies=[],
                 start_date="2024-01-01",
                 end_date="2024-01-01",
+                download_interval_type='both', # Added argument
             )
 
             # Verify get_all_symbols was called once for SPOT market
@@ -486,6 +487,7 @@ class TestBinanceDataDownloader:
                 frequencies=[],
                 start_date="2024-01-01",
                 end_date="2024-01-01",
+                download_interval_type='both', # Added argument
             )
 
             mock_get_all_symbols.assert_not_called()
@@ -512,6 +514,7 @@ class TestBinanceDataDownloader:
                 frequencies=[],
                 start_date="2024-01-01",
                 end_date="2024-01-01",
+                download_interval_type='both', # Added argument
             )
 
             mock_get_all_symbols.assert_called_once_with(DataMarket.SPOT, mock_get_all_symbols.call_args[0][1])
@@ -570,6 +573,7 @@ class TestBinanceDataDownloader:
                 start_date=date_csv_exists, # Covers 2023-01-01
                 end_date=date_for_download,   # Covers 2023-01-01, 2023-01-02, 2023-01-03 for daily
                                              # and 2023-01 for monthly
+                download_interval_type='both', # Added argument
             )
 
         # 3. Assertions:
