@@ -117,6 +117,23 @@ $ python main.py \
 | `--download-interval-type` | Type of download interval: 'daily', 'monthly', or 'both'. Determines if daily data, monthly data, or both are downloaded. | `both` | `daily` |
 | `--output-directory` | Output directory for downloaded data | `./downloaded_data` | `./my_data` |
 | `--log-level` | The logging level | `INFO` | `DEBUG` |
+| `--to-feather` | Convert downloaded CSV files to Feather format. | Not set/False | `--to-feather` |
+| `--delete-csv` | Delete CSV files after converting to Feather format (only effective if --to-feather is active). | Not set/False | `--delete-csv` |
+| `--convert-dir` | Convert all CSV files in the specified directory to Feather format. If this option is used, no downloads will be performed. | None | `--convert-dir ./my_csvs` |
+
+### CSV to Feather Conversion
+
+The script offers a feature to convert downloaded CSV files into the Apache Feather format. Feather is a fast, lightweight, and easy-to-use binary file format for storing data frames. Using Feather can significantly improve data loading performance for subsequent analysis compared to CSV.
+
+- To enable conversion of downloaded files, use the `--to-feather` flag.
+- If you wish to delete the original CSV files after successful conversion to Feather, add the `--delete-csv` flag. This is useful for saving disk space and only applies when `--to-feather` is also active.
+- The script also provides a standalone mode to convert all CSV files within a specified directory to Feather format. Use the `--convert-dir PATH_TO_YOUR_CSVS` argument to activate this mode. When `--convert-dir` is used, the script will *only* perform the conversion and will *not* attempt to download any new data. You can use `--delete-csv` in conjunction with this mode as well.
+
+**Usage example for directory conversion:**
+
+```bash
+$ python main.py --convert-dir ./my_downloaded_csvs --delete-csv
+```
 
 ## 📊 Data Support Details
 
@@ -305,6 +322,23 @@ $ python main.py \
 | `--download-interval-type` | 下載間隔的類型：'daily'、'monthly' 或 'both'。決定是下載每日數據、每月數據，還是兩者都下載。 | `both` | `daily` |
 | `--output-directory` | 下載數據的輸出目錄 | `./downloaded_data` | `./my_data` |
 | `--log-level` | 日誌記錄級別 | `INFO` | `DEBUG` |
+| `--to-feather` | 將下載的 CSV 檔案轉換為 Feather 格式。 | 未設置/False | `--to-feather` |
+| `--delete-csv` | 轉換為 Feather 格式後刪除 CSV 檔案 (僅當啟用 --to-feather 時有效)。 | 未設置/False | `--delete-csv` |
+| `--convert-dir` | 轉換指定目錄中的所有 CSV 檔案為 Feather 格式。如果使用此選項，將不會執行下載操作。 | 無 | `--convert-dir ./my_csvs` |
+
+### CSV 至 Feather 格式轉換
+
+此腳本提供將下載的 CSV 檔案轉換為 Apache Feather 格式的功能。Feather 是一種快速、輕量且易於使用的二進制檔案格式，用於儲存數據框。與 CSV 相比，使用 Feather 可以顯著提高後續分析的數據加載效能。
+
+- 若要啟用下載檔案的轉換功能，請使用 `--to-feather` 旗標。
+- 如果希望在成功轉換為 Feather 格式後刪除原始 CSV 檔案，請添加 `--delete-csv` 旗標。這有助於節省磁碟空間，且僅在同時啟用 `--to-feather` 時生效。
+- 腳本還提供獨立模式，可將指定目錄中的所有 CSV 檔案轉換為 Feather 格式。請使用 `--convert-dir PATH_TO_YOUR_CSVS` 參數啟動此模式。當使用 `--convert-dir` 時，腳本將*僅*執行轉換操作，而*不會*嘗試下載任何新數據。在此模式下，您也可以同時使用 `--delete-csv`。
+
+**目錄轉換使用範例:**
+
+```bash
+$ python main.py --convert-dir ./my_downloaded_csvs --delete-csv
+```
 
 ## 📊 數據支援詳情
 
