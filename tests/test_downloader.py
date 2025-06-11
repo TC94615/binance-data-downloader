@@ -5,6 +5,7 @@ import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+import logging # Import logging
 import pytest
 import aiohttp
 from aioresponses import aioresponses
@@ -517,3 +518,102 @@ class TestBinanceDataDownloader:
             assert "No symbols found for any of the selected markets. Exiting." in caplog.text
             # download_tasks should not be called if no symbols are processed
             mock_download_tasks.assert_not_called()
+
+
+    @pytest.mark.asyncio
+    async def test_download_data_skip_existing_files(self, caplog): # Added caplog fixture
+        caplog.set_level(logging.DEBUG) # Configure caplog to capture DEBUG level messages
+        # 1. Setup:
+        #    - Use self.downloader (already initialized in setup_method with self.temp_dir)
+        #    - Define parameters for download_data that would generate a known set of files
+        market = DataMarket.SPOT
+        data_type = DataType.KLINES
+        symbol = "BTCUSDT"
+        frequency = Frequency.ONE_DAY
+        start_date = "2023-01-01" # A single day for simplicity
+        # end_date will be varied for test cases
+
+        #      File 1: CSV exists (daily)
+        date_csv_exists = "2023-01-01"
+        # Construct path similar to _create_download_task: market/period/data_type/symbol/frequency/...
+        # The actual file name is symbol-frequency-date.csv
+        # The task.output_path will be .../symbol-frequency-date.zip
+        # The check is temp_task.output_path.with_suffix(".csv")
+        # So, we create self.temp_dir / market / "daily" / data_type / symbol / frequency / filename.csv
+        csv_file_name_for_skip = f"{symbol}-{frequency.value}-{date_csv_exists}.csv"
+        path_for_csv_skip = self.temp_dir / market.value / "daily" / data_type.value / symbol / frequency.value / csv_file_name_for_skip
+        path_for_csv_skip.parent.mkdir(parents=True, exist_ok=True)
+        path_for_csv_skip.touch() # Create empty CSV file
+
+        #      File 2: Feather exists (daily, different date)
+        date_feather_exists = "2023-01-02"
+        feather_file_name_for_skip = f"{symbol}-{frequency.value}-{date_feather_exists}.feather"
+        path_for_feather_skip = self.temp_dir / market.value / "daily" / data_type.value / symbol / frequency.value / feather_file_name_for_skip
+        path_for_feather_skip.parent.mkdir(parents=True, exist_ok=True)
+        path_for_feather_skip.touch() # Create empty feather file
+
+        #      File 3: Neither CSV nor Feather exists (daily, different date)
+        #      This file *should* be part of the download tasks.
+        date_for_download = "2023-01-03"
+
+        # 2. Action:
+        #    - Patch `self.downloader.file_downloader.download_tasks` to monitor its calls.
+        with patch.object(self.downloader.file_downloader, "download_tasks", new_callable=AsyncMock) as mock_file_download_tasks:
+            mock_file_download_tasks.return_value = {} # Simulate successful download
+
+            await self.downloader.download_data(
+                markets=[market],
+                data_types=[data_type],
+                symbols=[symbol],
+                frequencies=[frequency],
+                start_date=date_csv_exists, # Covers 2023-01-01
+                end_date=date_for_download,   # Covers 2023-01-01, 2023-01-02, 2023-01-03 for daily
+                                             # and 2023-01 for monthly
+            )
+
+        # 3. Assertions:
+        #    - Check that `mock_file_download_tasks` was called.
+        mock_file_download_tasks.assert_called_once()
+
+        tasks_passed = mock_file_download_tasks.call_args[0][0]
+
+        # Construct expected .zip output paths for skipped files
+        # These paths correspond to DownloadTask.output_path
+        zip_path_for_skipped_csv = self.temp_dir / market.value / "daily" / data_type.value / symbol / frequency.value / f"{symbol}-{frequency.value}-{date_csv_exists}.zip"
+        zip_path_for_skipped_feather = self.temp_dir / market.value / "daily" / data_type.value / symbol / frequency.value / f"{symbol}-{frequency.value}-{date_feather_exists}.zip"
+
+        # Check that tasks for the pre-existing files were NOT generated
+        found_task_for_existing_csv = any(
+            task.output_path == zip_path_for_skipped_csv for task in tasks_passed
+        )
+        assert not found_task_for_existing_csv, f"Task for existing CSV ({zip_path_for_skipped_csv}) should have been skipped"
+
+        found_task_for_existing_feather = any(
+            task.output_path == zip_path_for_skipped_feather for task in tasks_passed
+        )
+        assert not found_task_for_existing_feather, f"Task for existing Feather ({zip_path_for_skipped_feather}) should have been skipped"
+
+        # Check that the task for the 'to-be-downloaded' file WAS generated
+        expected_zip_path_for_download = self.temp_dir / market.value / "daily" / data_type.value / symbol / frequency.value / f"{symbol}-{frequency.value}-{date_for_download}.zip"
+        found_task_for_download = any(
+            task.output_path == expected_zip_path_for_download for task in tasks_passed
+        )
+        assert found_task_for_download, f"Task for non-existing file ({expected_zip_path_for_download}) was not generated"
+
+        # Check that the monthly task for '2023-01' was also generated
+        # Monthly file name uses the specified frequency in its name: symbol-frequency-YYYY-MM.zip
+        # Path: market/monthly/data_type/symbol/frequency/filename.zip
+        expected_monthly_zip_path = self.temp_dir / market.value / "monthly" / data_type.value / symbol / frequency.value / f"{symbol}-{frequency.value}-2023-01.zip"
+        found_monthly_task = any(
+            task.output_path == expected_monthly_zip_path for task in tasks_passed
+        )
+        assert found_monthly_task, f"Monthly task for 2023-01 ({expected_monthly_zip_path}) should have been generated"
+
+        #    - Verify log messages
+        # The log message uses the .stem of the csv path, which is the filename without .csv
+        # path_for_csv_skip.stem is 'BTCUSDT-1d-2023-01-01'
+        assert f"Skipping existing file (CSV or Feather): {path_for_csv_skip.stem}" in caplog.text
+        assert f"Skipping existing file (CSV or Feather): {path_for_feather_skip.stem}" in caplog.text
+
+        # Expected tasks: 1 daily (2023-01-03) + 1 monthly (2023-01)
+        assert len(tasks_passed) == 2, f"Expected 2 tasks, but got {len(tasks_passed)}. Tasks: {[t.output_path for t in tasks_passed]}"

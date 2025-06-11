@@ -403,9 +403,12 @@ class BinanceDataDownloader:
                                     final_csv_path = temp_task.output_path.with_suffix(
                                         ".csv"
                                     )
-                                    if final_csv_path.exists():
+                                    final_feather_path = temp_task.output_path.with_suffix(
+                                        ".feather"
+                                    )
+                                    if final_csv_path.exists() or final_feather_path.exists():
                                         self.logger.debug(
-                                            f"Skipping existing file: {final_csv_path}"
+                                            f"Skipping existing file (CSV or Feather): {final_csv_path.stem}"
                                         )
                                         continue  # 如果存在，就跳過這個迴圈，不建立任務
 
@@ -423,9 +426,12 @@ class BinanceDataDownloader:
                                 final_csv_path = temp_task.output_path.with_suffix(
                                     ".csv"
                                 )
-                                if final_csv_path.exists():
+                                final_feather_path = temp_task.output_path.with_suffix(
+                                    ".feather"
+                                )
+                                if final_csv_path.exists() or final_feather_path.exists():
                                     self.logger.debug(
-                                        f"Skipping existing file: {final_csv_path}"
+                                        f"Skipping existing file (CSV or Feather): {final_csv_path.stem}"
                                     )
                                     continue
 
