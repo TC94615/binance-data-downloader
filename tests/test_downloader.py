@@ -407,6 +407,7 @@ class TestBinanceDataDownloader:
                 frequencies=[Frequency.ONE_DAY],
                 start_date="2025-01-01",
                 end_date="2025-01-02",
+                download_interval_type="both", # Added to match new required parameter
             )
 
             # Verify download_tasks was called
@@ -617,3 +618,140 @@ class TestBinanceDataDownloader:
 
         # Expected tasks: 1 daily (2023-01-03) + 1 monthly (2023-01)
         assert len(tasks_passed) == 2, f"Expected 2 tasks, but got {len(tasks_passed)}. Tasks: {[t.output_path for t in tasks_passed]}"
+
+
+class TestBinanceDataDownloaderWithDownloadPeriod:
+    """Test cases for BinanceDataDownloader focusing on download_period."""
+
+    def setup_method(self):
+        """Setup test fixtures."""
+        self.temp_dir = Path(tempfile.mkdtemp())
+        # Ensure constructor accepts to_feather and delete_csv if those are class attributes
+        # For these tests, we are mocking download_tasks, so actual FileDownloader details are less critical
+        self.downloader = BinanceDataDownloader(self.temp_dir, to_feather=False, delete_csv=False)
+        # Mock the actual file downloading part
+        self.mock_file_downloader_patch = patch.object(
+            self.downloader, "file_downloader", new_callable=AsyncMock
+        )
+        self.mock_file_downloader = self.mock_file_downloader_patch.start()
+        self.mock_file_downloader.download_tasks = AsyncMock(return_value={})
+
+        # Mock get_all_symbols to prevent actual API calls if symbols=None
+        self.mock_get_all_symbols_patch = patch("src.binance_downloader.downloader.get_all_symbols", new_callable=AsyncMock)
+        self.mock_get_all_symbols = self.mock_get_all_symbols_patch.start()
+        self.mock_get_all_symbols.return_value = ["BTCUSDT"] # Default mock
+
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        self.mock_file_downloader_patch.stop()
+        self.mock_get_all_symbols_patch.stop()
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    async def _run_download_data_and_get_tasks(self, download_interval_type_value: str, symbols: list = ["BTCUSDT"]):
+        """Helper to run download_data and return the tasks passed to file_downloader."""
+        await self.downloader.download_data(
+            markets=[DataMarket.SPOT],
+            data_types=[DataType.KLINES, DataType.TRADES], # Include a kline and non-kline type
+            symbols=symbols,
+            frequencies=[Frequency.ONE_DAY],
+            start_date="2024-01-01",
+            end_date="2024-01-01", # Single day for simplicity
+            download_interval_type=download_interval_type_value,
+        )
+        if self.mock_file_downloader.download_tasks.call_args:
+            return self.mock_file_downloader.download_tasks.call_args[0][0]
+        return []
+
+    @pytest.mark.asyncio
+    async def test_download_data_daily_only(self):
+        """Asserts that only daily data tasks are created when download_interval_type is 'daily'."""
+        tasks = await self._run_download_data_and_get_tasks(download_interval_type_value="daily")
+
+        assert tasks, "No tasks were generated"
+        # For SPOT, KLINE (1d) and TRADES, 2024-01-01, BTCUSDT:
+        # Expecting:
+        # 1. spot/daily/klines/BTCUSDT/1d/BTCUSDT-1d-2024-01-01.zip
+        # 2. spot/daily/trades/BTCUSDT/BTCUSDT-trades-2024-01-01.zip
+        assert len(tasks) == 2
+        for task in tasks:
+            assert "daily" in task.url, f"Task URL {task.url} should contain 'daily'"
+            assert "monthly" not in task.url, f"Task URL {task.url} should not contain 'monthly'"
+            assert task.output_path.parent.name == "BTCUSDT" or task.output_path.parent.name == Frequency.ONE_DAY.value # klines have freq in path
+
+    @pytest.mark.asyncio
+    async def test_download_data_monthly_only(self):
+        """Asserts that only monthly data tasks are created when download_interval_type is 'monthly'."""
+        tasks = await self._run_download_data_and_get_tasks(download_interval_type_value="monthly")
+
+        assert tasks, "No tasks were generated"
+        # For SPOT, KLINE (1d) and TRADES, 2024-01 (from 2024-01-01), BTCUSDT:
+        # Expecting:
+        # 1. spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-01.zip
+        # 2. spot/monthly/trades/BTCUSDT/BTCUSDT-trades-2024-01.zip
+        assert len(tasks) == 2
+        for task in tasks:
+            assert "monthly" in task.url, f"Task URL {task.url} should contain 'monthly'"
+            assert "daily" not in task.url, f"Task URL {task.url} should not contain 'daily'"
+            assert task.output_path.parent.name == "BTCUSDT" or task.output_path.parent.name == Frequency.ONE_DAY.value
+
+    @pytest.mark.asyncio
+    async def test_download_data_both(self):
+        """Asserts that both daily and monthly data tasks are created when download_interval_type is 'both'."""
+        tasks = await self._run_download_data_and_get_tasks(download_interval_type_value="both")
+
+        assert tasks, "No tasks were generated"
+        # For SPOT, KLINE (1d) and TRADES, 2024-01-01 (daily) & 2024-01 (monthly), BTCUSDT:
+        # Daily:
+        # 1. spot/daily/klines/BTCUSDT/1d/BTCUSDT-1d-2024-01-01.zip
+        # 2. spot/daily/trades/BTCUSDT/BTCUSDT-trades-2024-01-01.zip
+        # Monthly:
+        # 3. spot/monthly/klines/BTCUSDT/1d/BTCUSDT-1d-2024-01.zip
+        # 4. spot/monthly/trades/BTCUSDT/BTCUSDT-trades-2024-01.zip
+        assert len(tasks) == 4
+        daily_tasks_count = sum(1 for task in tasks if "daily" in task.url)
+        monthly_tasks_count = sum(1 for task in tasks if "monthly" in task.url)
+        assert daily_tasks_count == 2, "Expected 2 daily tasks"
+        assert monthly_tasks_count == 2, "Expected 2 monthly tasks"
+
+    @pytest.mark.asyncio
+    async def test_download_data_daily_only_no_symbols_fetch(self):
+        """Test daily only with symbol fetching."""
+        self.mock_get_all_symbols.return_value = ["ETHUSDT"] # Mock fetched symbol
+        tasks = await self._run_download_data_and_get_tasks(download_interval_type_value="daily", symbols=None)
+
+        assert tasks, "No tasks were generated"
+        assert len(tasks) == 2 # ETHUSDT daily klines, ETHUSDT daily trades
+        for task in tasks:
+            assert "daily" in task.url
+            assert "ETHUSDT" in task.url
+        self.mock_get_all_symbols.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_download_data_monthly_only_no_symbols_fetch(self):
+        """Test monthly only with symbol fetching."""
+        self.mock_get_all_symbols.return_value = ["BNBUSDT"] # Mock fetched symbol
+        tasks = await self._run_download_data_and_get_tasks(download_interval_type_value="monthly", symbols=None)
+
+        assert tasks, "No tasks were generated"
+        assert len(tasks) == 2 # BNBUSDT monthly klines, BNBUSDT monthly trades
+        for task in tasks:
+            assert "monthly" in task.url
+            assert "BNBUSDT" in task.url
+        self.mock_get_all_symbols.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_download_data_both_no_symbols_fetch(self):
+        """Test both daily and monthly with symbol fetching."""
+        self.mock_get_all_symbols.return_value = ["SOLUSDT"] # Mock fetched symbol
+        tasks = await self._run_download_data_and_get_tasks(download_interval_type_value="both", symbols=None)
+
+        assert tasks, "No tasks were generated"
+        assert len(tasks) == 4 # SOLUSDT daily (klines, trades), SOLUSDT monthly (klines, trades)
+        for task in tasks:
+            assert "SOLUSDT" in task.url
+        daily_tasks_count = sum(1 for task in tasks if "daily" in task.url and "SOLUSDT" in task.url)
+        monthly_tasks_count = sum(1 for task in tasks if "monthly" in task.url and "SOLUSDT" in task.url)
+        assert daily_tasks_count == 2
+        assert monthly_tasks_count == 2
+        self.mock_get_all_symbols.assert_called_once()

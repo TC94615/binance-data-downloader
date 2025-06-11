@@ -114,6 +114,7 @@ $ python main.py \
 | `--symbols` | The trading pair symbols | `BTCUSDT` | `BTCUSDT ETHUSDT` |
 | `--start-date` | Start date (YYYY-MM-DD) | 30 days ago | `2025-01-01` |
 | `--end-date` | End date (YYYY-MM-DD) | Today | `2025-01-31` |
+| `--download-interval-type` | Type of download interval: 'daily', 'monthly', or 'both'. Determines if daily data, monthly data, or both are downloaded. | `both` | `daily` |
 | `--output-directory` | Output directory for downloaded data | `./downloaded_data` | `./my_data` |
 | `--log-level` | The logging level | `INFO` | `DEBUG` |
 
@@ -301,6 +302,7 @@ $ python main.py \
 | `--symbols` | 交易對符號 | `BTCUSDT` | `BTCUSDT ETHUSDT` |
 | `--start-date` | 開始日期 (YYYY-MM-DD) | 30 天前 | `2025-01-01` |
 | `--end-date` | 結束日期 (YYYY-MM-DD) | 今天 | `2025-01-31` |
+| `--download-interval-type` | 下載間隔的類型：'daily'、'monthly' 或 'both'。決定是下載每日數據、每月數據，還是兩者都下載。 | `both` | `daily` |
 | `--output-directory` | 下載數據的輸出目錄 | `./downloaded_data` | `./my_data` |
 | `--log-level` | 日誌記錄級別 | `INFO` | `DEBUG` |
 
