@@ -60,6 +60,13 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--end-date", type=str, help="End date (YYYY-MM-DD)")
 
     parser.add_argument(
+        "--download-period",
+        choices=['daily', 'monthly', 'both'],
+        default='both',
+        help="Download period: 'daily', 'monthly', or 'both'. Default is 'both'."
+    )
+
+    parser.add_argument(
         "--output-directory",
         type=Path,
         default=Path("./downloaded_data"),
