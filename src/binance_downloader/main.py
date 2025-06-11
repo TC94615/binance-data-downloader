@@ -11,7 +11,7 @@ import logging
 
 from .core import DataMarket, DataType, Frequency
 from .downloader import BinanceDataDownloader
-from .utils import parse_arguments, setup_logging
+from .utils import parse_arguments, setup_logging, convert_csv_directory_to_feather # Added import
 
 
 async def main():
@@ -22,13 +22,20 @@ async def main():
     logger = logging.getLogger(__name__)
     logger.info("Starting Binance Data Downloader")
 
+    if args.convert_dir:
+        logger.info(f"Starting CSV to Feather conversion for directory: {args.convert_dir}")
+        convert_csv_directory_to_feather(args.convert_dir, args.delete_csv)
+        logger.info("Directory conversion finished.")
+        return
+
     # Convert string arguments to enums
     markets = [DataMarket(market) for market in args.data_markets]
     data_types = [DataType(dt) for dt in args.data_types]
     frequencies = [Frequency(freq) for freq in args.frequencies]
 
     # Create downloader and start download
-    downloader = BinanceDataDownloader(args.output_directory)
+    # Assumes BinanceDataDownloader constructor will be updated to accept to_feather and delete_csv
+    downloader = BinanceDataDownloader(args.output_directory, args.to_feather, args.delete_csv)
 
     try:
         await downloader.download_data(

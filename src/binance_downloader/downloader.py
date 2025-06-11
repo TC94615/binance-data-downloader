@@ -18,6 +18,7 @@ from .core import (
     DownloadTask,
     Frequency,
 )
+from .utils import convert_csv_to_feather # Added import
 from .url_builder import BinanceURLBuilder
 from .symbol_fetcher import get_all_symbols
 
@@ -101,8 +102,10 @@ class ChecksumValidator:
 class FileDownloader:
     """Handles file downloads with concurrent processing."""
 
-    def __init__(self, output_dir: Path, max_concurrent: int = 5):
+    def __init__(self, output_dir: Path, to_feather: bool = False, delete_csv: bool = False, max_concurrent: int = 5):
         self.output_dir = output_dir
+        self.to_feather = to_feather
+        self.delete_csv = delete_csv
         self.max_concurrent = max_concurrent
         self.logger = logging.getLogger(__name__)
         self.checksum_validator = ChecksumValidator()
@@ -210,10 +213,19 @@ class FileDownloader:
 
             # Use thread pool for CPU-bound zip extraction
             loop = asyncio.get_event_loop()
+            extracted_file_paths: List[Path] = []
             with ThreadPoolExecutor() as executor:
-                await loop.run_in_executor(
+                extracted_file_paths = await loop.run_in_executor(
                     executor, self._extract_zip_sync, zip_path, extract_dir
                 )
+
+            # Convert to Feather if requested
+            if self.to_feather and extracted_file_paths: # self.to_feather will be added later
+                self.logger.debug(f"Attempting Feather conversion for files from {zip_path.name}")
+                for file_path in extracted_file_paths:
+                    if file_path.suffix == ".csv":
+                        # self.delete_csv will be added later
+                        convert_csv_to_feather(file_path, self.delete_csv)
 
             # 解壓縮成功後，刪除 zip 檔案
             zip_path.unlink()
@@ -222,12 +234,14 @@ class FileDownloader:
         except Exception as e:
             self.logger.error(f"Error processing zip file {zip_path}: {e}")
 
-    def _extract_zip_sync(self, zip_path: Path, extract_dir: Path) -> None:
+    def _extract_zip_sync(self, zip_path: Path, extract_dir: Path) -> List[Path]:
         """
         Synchronously extracts files from a zip archive to a specified directory,
         placing all contents directly in the target directory without preserving
         the internal folder structure of the zip file.
+        Returns a list of paths to the extracted files.
         """
+        extracted_files: List[Path] = []
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             for member in zip_ref.infolist():
                 # 跳過任何可能是目錄的成員
@@ -247,15 +261,20 @@ class FileDownloader:
                 with zip_ref.open(member, "r") as source_file:
                     with open(target_path, "wb") as target_file:
                         target_file.write(source_file.read())
+                extracted_files.append(target_path)
+        return extracted_files
 
 
 class BinanceDataDownloader:
     """Main class orchestrating the download process."""
 
-    def __init__(self, output_dir: Path = Path("./downloaded_data")):
+    def __init__(self, output_dir: Path = Path("./downloaded_data"), to_feather: bool = False, delete_csv: bool = False):
         self.output_dir = output_dir
+        self.to_feather = to_feather
+        self.delete_csv = delete_csv
         self.url_builder = BinanceURLBuilder()
-        self.file_downloader = FileDownloader(output_dir)
+        # This will require FileDownloader.__init__ to be updated
+        self.file_downloader = FileDownloader(output_dir, self.to_feather, self.delete_csv)
         self.logger = logging.getLogger(__name__)
 
     def generate_date_range(
